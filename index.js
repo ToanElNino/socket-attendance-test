@@ -34,36 +34,68 @@ server.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
 
-const client = new net.Socket();
+// const io = require("socket.io-client");
 
-const io = require("socket.io-client");
+// const clientSocket = io("http://localhost:8080"); // Replace with your server's URL
 
-const clientSocket = io("http://localhost:8080"); // Replace with your server's URL
-
-clientSocket.on("connect", () => {
-  console.log("Connected to server");
-});
-
-clientSocket.on("data", (data) => {
-  console.log(`Received from server: ${data.toString()}`);
-  // Close the connection
-  //   client.end();
-});
-
-// client.connect(8080, "127.0.0.1", () => {
+// clientSocket.on("connect", () => {
 //   console.log("Connected to server");
-
-//   // Send data to the server
-//   client.write("Hello, server!");
 // });
 
-// client.on("data", (data) => {
+// clientSocket.on("data", (data) => {
 //   console.log(`Received from server: ${data.toString()}`);
-
 //   // Close the connection
-//   client.end();
+//   //   client.end();
 // });
 
-// client.on("end", () => {
-//   console.log("Connection closed");
-// });
+const ZKLib = require("./node_modules/node-zklib/zklib");
+const ping = require("ping");
+
+const test = async () => {
+  let i = 30;
+  while (1) {
+    console.log("-----------");
+    if (i >= 256) {
+      console.log("end loop");
+      break;
+    }
+    const ipAddress = `192.168.1.${i}`;
+    console.log("checking ping ip address: ", ipAddress);
+    const res = await ping.promise
+      .probe(ipAddress, {
+        timeout: 2,
+      })
+      .then((alive) => {
+        console.log("alive: ", alive.alive);
+        return alive.alive;
+      });
+    if (!res) {
+      console.log("cannot ping device ", ipAddress);
+      i++;
+    } else {
+      let zkInstance = new ZKLib(`192.168.1.${i}`, 4370, 2000, 4000);
+      try {
+        // Create socket to machine
+        console.log(`trying to connect to device at ip 192.168.1.${i}`);
+        await zkInstance.createSocket();
+        console.log(await zkInstance.getInfo());
+        console.log(`connect succeed: 192.168.1.${i}`);
+        break;
+      } catch (e) {
+        console.log(e);
+        console.log(`failed to connect to device at ip 192.168.1.${i}`);
+        if (e.code === "EADDRINUSE") {
+        }
+      } finally {
+        i++;
+      }
+    }
+  }
+
+  // Get users in machine
+  const users = await zkInstance.getUsers();
+  console.log(users);
+  await zkInstance.disconnect();
+};
+
+test();
